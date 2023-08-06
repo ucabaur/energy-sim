@@ -1,57 +1,41 @@
 import { PageFull } from "@/components/layout/PageFull";
-import DeckGL, {GeoJsonLayer, ArcLayer} from 'deck.gl';
+import dynamic from "next/dynamic";
 
-const COUNTRIES =
-  "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_admin_0_scale_rank.geojson"; //eslint-disable-line
-const AIR_PORTS =
-  "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_airports.geojson";
+import { csv } from "d3-request";
+import { useEffect, useState } from "react";
 
-const INITIAL_VIEW_STATE = {
-  latitude: 51.47,
-  longitude: 0.45,
-  zoom: 4,
-  bearing: 0,
-  pitch: 30,
-};
+// Source data CSV
+const DATA_URL =
+  "https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/3d-heatmap/heatmap-data.csv"; // eslint-disable-line
+
+const MapFullScreen = dynamic(() => import("../components/map/MapFullScreen"), {
+  ssr: false,
+});
 
 export default function Home() {
+  const [data, setData] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    csv(DATA_URL, (error: any, csvData: any[]) => {
+      if (error) {
+        console.error("Error loading the CSV file", error);
+        return;
+      }
+      const dataValues = csvData.map((d) => ({
+        COORDINATES: [Number(d.lng), Number(d.lat)],
+      }));
+      console.log(dataValues);
+      setData(dataValues);
+    });
+  }, []);
+
   return (
     <PageFull>
-      <DeckGL controller={true} initialViewState={INITIAL_VIEW_STATE}>
-        <GeoJsonLayer
-          id="base-map"
-          data={COUNTRIES}
-          stroked={true}
-          filled={true}
-          lineWidthMinPixels={2}
-          opacity={0.4}
-          getLineColor={[60, 60, 60]}
-          getFillColor={[200, 200, 200]}
-        />
-        <GeoJsonLayer
-          id="airports"
-          data={AIR_PORTS}
-          filled={true}
-          pointRadiusMinPixels={2}
-          pointRadiusScale={2000}
-          getPointRadius={(f) => 11 - f.properties.scalerank}
-          getFillColor={[200, 0, 80, 180]}
-          pickable={true}
-          autoHighlight={true}
-        />
-        <ArcLayer
-          id="arcs"
-          data={AIR_PORTS}
-          dataTransform={(d) =>
-            d.features.filter((f) => f.properties.scalerank < 4)
-          }
-          getSourcePosition={(f) => [-0.4531566, 51.4709959]}
-          getTargetPosition={(f) => f.geometry.coordinates}
-          getSourceColor={[0, 128, 200]}
-          getTargetColor={[200, 0, 80]}
-          getWidth={1}
-        />
-      </DeckGL>
+      {data && data.length > 0 ? (
+        <MapFullScreen data={data} />
+      ) : (
+        <p>Loading ...</p>
+      )}
     </PageFull>
   );
 }
