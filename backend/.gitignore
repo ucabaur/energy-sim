@@ -3,4 +3,6 @@
 # local env files
 .env
 .env*.local
+.venv
 
+*/__pycache__/*
